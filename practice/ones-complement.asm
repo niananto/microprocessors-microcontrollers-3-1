@@ -1,0 +1,56 @@
+.MODEL SMALL
+
+
+.STACK 100H
+
+
+.DATA
+CR EQU 0DH
+LF EQU 0AH   
+
+PROMPT DB 'INPUT A CHARACTER',CR,LF,'$'
+NEWLINE DB CR,LF,'$'
+X DB ?
+
+.CODE
+
+MAIN PROC
+	;DATA SEGMENT INITIALIZATION
+    MOV AX, @DATA
+    MOV DS, AX
+    
+    ;PROMPT
+    LEA DX, PROMPT
+    MOV AH, 9
+    INT 21H
+    
+    ;INPUT
+    MOV AH, 1
+    INT 21H
+    MOV X, AL
+    LEA DX, NEWLINE
+    MOV AH, 9
+    INT 21H
+        
+    ;PROCESS
+    ;NEG X
+    ;SUB X, 1       
+    
+    ;PROCESS
+    SUB X, 0FFH
+    NEG X   
+    
+    ;BOTH ARE CORRECT
+    
+    ;OUTPUT
+    MOV DL, X
+    MOV AH, 2
+    INT 21H
+    
+    
+    ;DOS EXIT
+    MOV AH, 4CH
+    INT 21H
+
+MAIN ENDP
+END MAIN
