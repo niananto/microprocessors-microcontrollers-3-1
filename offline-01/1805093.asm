@@ -2,9 +2,6 @@
 .STACK 100H 
 .DATA
 
-TEMP1 DW ?
-TEMP2 DW ?
-TEMPB DB ?
 COUNT DW ?
 LEN DW ?
 N DW ?
@@ -12,14 +9,14 @@ ISNEGATIVE DB ?
 CR EQU 0DH
 LF EQU 0AH
 
-NL DB CR,LF,'$'
 MSG1 DB 'INSERT HOW MANY NUMBERS YOU WANT IN THE ARRAY?',CR,LF,'$'
 MSG2 DB CR,LF,'HERE IS THE SORTED ARRAY',CR,LF,'$'
 MSG3 DB CR,LF,'INSERT A NUMBER TO SEARCH IN THE ARRAY',CR,LF,'$'
 MSG4 DB CR,LF,'FOUND IN THE INDEX $'
-MSG5 DB CR,LF,'NOT FOUND',CR,LF,'$'
+MSG5 DB CR,LF,'NOT FOUND$'
 
 ARRAY DW 100 DUP(?)
+NUMBER_STRING DB '00000$'
 
 LOW DW ?
 HIGH DW ?
@@ -46,12 +43,10 @@ MAIN PROC
     MOV CX, N
     MOV LEN, CX
     
-    MOV AH, 9
-    LEA DX, NL
-    INT 21H               
+    CALL NEWLINE               
     
     ;3. Take n integers from the user.            
-    XOR BX, BX        
+    XOR SI, SI        
     ALL_INPUT:
         CALL MULTI_CHAR_INPUT ;INPUT SET IN N           
         
@@ -60,8 +55,8 @@ MAIN PROC
         INT 21H
         
 	    MOV AX, N
-	    MOV ARRAY[BX], AX
-	    ADD BX, 2
+	    MOV ARRAY[SI], AX
+	    ADD SI, 2
     LOOP ALL_INPUT        
     
     ;4. Sort them using insertion sort. 
@@ -72,31 +67,22 @@ MAIN PROC
     LEA DX, MSG2
     INT 21H
     
-    MOV AH, 2
-    MOV DL, 91  ;[
-    INT 21H
-    MOV DL, 32
-    INT 21H
-    
-    XOR BX, BX
+    XOR SI, SI
     MOV CX, LEN
     
     ALL_OUTPUT:
-    	MOV AX, ARRAY[BX]
+    	MOV AX, ARRAY[SI]
     	MOV N, AX
     	MOV COUNT, 0
         
-        CALL MULTI_CHAR_OUTPUT
+        ;CALL MULTI_CHAR_OUTPUT
+        CALL MULTI_CHAR_PRINT_STRING
         	
         MOV AH, 2
         MOV DL, 32
         INT 21H
-    	ADD BX, 2
+    	ADD SI, 2
     LOOP ALL_OUTPUT 
-    
-    MOV AH, 2
-    MOV DL, 93 ;]
-    INT 21H
     
     ;6. Take an integer x from the user.
     STEP_06:
@@ -110,6 +96,7 @@ MAIN PROC
     ;7. Use binary search to find x’s index in the sorted array. Display the index if found, otherwise
 	;print ‘NOT FOUND’. 
     CALL BINARY_SEARCH ;SEARCH IN ARRAY FOR N
+    JMP STEP_06
     
     ;9. Go to Step 1. 
     JMP STEP_01  
@@ -140,12 +127,12 @@ MULTI_CHAR_INPUT PROC
         AND AX, 000FH
         ;0000 0000 0000 1111
  
-        MOV TEMP1, AX
+        MOV BX, AX
         
-        ; DX = DX * 10 + TEMP1
+        ; DX = DX * 10 + BX
         MOV AX, 10
         MUL DX
-        ADD AX, TEMP1
+        ADD AX, BX
         MOV DX, AX
         JMP SINGLE_CHAR_INPUT
         
@@ -168,31 +155,27 @@ MULTI_CHAR_INPUT PROC
 MULTI_CHAR_INPUT ENDP
    
 MULTI_CHAR_OUTPUT PROC
-	CMP N, 0
-	JL NEGATIVE_OUTPUT
 	
 	MOV COUNT, 0
-    MOV AX, N
+	
+	CMP AX, 0
+	JL NEGATIVE_OUTPUT
 	
 	SINGLE_OUTPUT:
-        MOV DL, 10
-        DIV DL
+		MOV DX, 0
+        MOV BX, 10
+        DIV BX
         
-        MOV TEMPB, AL ;RESULT
-		MOV DL, AH
-		AND DX, 00FFH
 		PUSH DX
 		INC COUNT  
-        
-        CMP TEMPB, 0
+         
+        CMP AX, 0
         JZ END_SINGLE_OUTPUT
         
-        MOV AL, TEMPB
-        AND AX, 00FFH
         JMP SINGLE_OUTPUT
 
     END_SINGLE_OUTPUT:
-		MOV TEMP1, CX
+		MOV BX, CX
 		MOV CX, COUNT
 		MOV AH, 2
 		
@@ -202,16 +185,18 @@ MULTI_CHAR_OUTPUT PROC
 			INT 21H
 		LOOP PRINT_OUTPUT       
     
-    	MOV CX, TEMP1
+    	MOV CX, BX
         RET
+        
    	NEGATIVE_OUTPUT:
+   		MOV BX, AX
+   		
    		MOV AH, 2
    		MOV DL, 45
    		INT 21H
    		
-   		MOV COUNT, 0
-   		NEG N
-   		MOV AX, N
+   		MOV AX, BX
+   		NEG AX
    		JMP SINGLE_OUTPUT
    	
     RET    	
@@ -219,31 +204,32 @@ MULTI_CHAR_OUTPUT ENDP
 
 INSERTION_SORT PROC
 	MOV CX, LEN
+    XOR SI, SI
     XOR BX, BX
     
     SORT:
-	    MOV TEMP1, BX
+	    MOV BX, SI
 	    
         BACKTRACK:
-        	CMP BX, 0
+        	CMP SI, 0
 	        JE END_BACKTRACK
 	        
-	        MOV AX, ARRAY[BX-2]
-	        MOV DX, ARRAY[BX]
+	        MOV AX, ARRAY[SI-2]
+	        MOV DX, ARRAY[SI]
 	        CMP AX, DX
 	        JNG END_BACKTRACK
 	        
 	        ;SWAP ARRAY[BX] AND ARRAY[BX-2]
-        	MOV ARRAY[BX-2], DX
-        	MOV ARRAY[BX], AX
+        	MOV ARRAY[SI-2], DX
+        	MOV ARRAY[SI], AX
         	
-        	SUB BX, 2
+        	SUB SI, 2
         	JMP BACKTRACK    	
         	                     
         END_BACKTRACK:
 	        
-	    MOV BX, TEMP1    
-	    ADD BX, 2
+	    MOV SI, BX    
+	    ADD SI, 2
     LOOP SORT
     RET
 INSERTION_SORT ENDP
@@ -306,25 +292,79 @@ BINARY_SEARCH PROC
 	    INT 21H
 	          
 ;	    MID/2
+		MOV DX, 0
 	    MOV AX, MID
     	MOV BX, 2
-    	DIV BL
-	    MOV N, AX
-		INC N
-		
-        CALL MULTI_CHAR_OUTPUT       
+    	DIV BX
+	    
+	    INC AX
+        ;CALL MULTI_CHAR_OUTPUT       
+        CALL MULTI_CHAR_PRINT_STRING
 		
 		;8. For another search in the same array go to Step 6.
-	    JMP STEP_06
+	    RET
     
     END_UNSUCCESSFUL_SEARCH:
         LEA DX, MSG5
         MOV AH, 9
         INT 21H
         ;8. For another search in the same array go to Step 6.
-        JMP STEP_06
-
+        RET
+    
+    RET
 BINARY_SEARCH ENDP
+
+NEWLINE PROC
+    MOV AH, 2
+    MOV DL, CR
+    INT 21H
+    MOV DL, LF
+    INT 21H
+    RET
+NEWLINE ENDP
+
+MULTI_CHAR_PRINT_STRING PROC
+    
+    LEA DI, NUMBER_STRING
+    ADD DI, 5               
+    
+    CMP AX, 0
+    JL PRINT_NEG
+    
+    PRINT_LOOP:
+        DEC DI
+        
+        MOV DX, 0
+        ; DX:AX = 0000:AX
+        
+        MOV BX, 10
+        DIV BX
+        
+        ADD DL, '0'
+        MOV [DI], DL
+        
+        CMP AX, 0
+        JNE PRINT_LOOP
+        JMP DONE
+        
+    PRINT_NEG:
+     	MOV BX, AX
+     	MOV AH, 2
+     	MOV DL, 45
+     	INT 21H
+     	MOV AX, BX
+     	NEG AX
+     	JMP PRINT_LOOP
+     
+    DONE:
+    
+    MOV DX, DI
+    MOV AH, 9
+    INT 21H
+    
+    RET
+
+MULTI_CHAR_PRINT_STRING ENDP
 
 END MAIN 
                                      
